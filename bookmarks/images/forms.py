@@ -1,5 +1,9 @@
 from django import forms
 from .models import Image
+from django.utils.text import slugify
+import requests
+from django.core.files.base import ContentFile
+
 
 class ImageCreateForm(forms.ModelForm):
 
@@ -19,3 +23,18 @@ class ImageCreateForm(forms.ModelForm):
 
             raise forms.ValidationError("the given URL does not match a valid image extentions.")
         return url
+
+    
+    def save(self, force_insert=False, force_update=False, commit=True):
+
+        image = super().save(commit=False) # instance from model class
+        image_url = self.cleaned_data['url']
+        name = slugify(image.title)
+        extension = image_url.rsplit('.', 1)[1].lower()
+        image_name = f"{name}.{extension}"
+        response = requests.get(image_url) #download image
+        image.image.save(image_name, ContentFile(response.content), save=False)
+        
+        if commit:
+            image.save()
+        return image
